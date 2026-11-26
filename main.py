@@ -1,31 +1,46 @@
-"""One-line entry for the make.fun bounty
-u-deysumbrella-one-line-one-laugh-e0cdcda9.
+"""One-line joke entry for make.fun.
 
-Writes the entry to $MAKEFUN_OUTPUT_DIR/entry.txt (default /output).
-Never writes into the repository itself (the grader mounts it read-only).
+The program prints one joke into $MAKEFUN_OUTPUT_DIR/entry.txt.
+It never touches the repository directory: the grader mounts it read-only.
 """
 
 import os
 import unicodedata
 
-ENTRY = "I told the Wi-Fi a joke and it died laughing — ticket #4821, cause of death: my humor."
+# The joke is assembled from its three beats so each part reads on its own.
+SETUP = "I told the Wi-Fi a joke and it died laughing"
+PUNCHLINE = "ticket #4821, cause of death: my humor."
+MAX_CHARS = 140
+
+
+def build_one_liner():
+    """Join the setup and the punchline with an em dash."""
+    return SETUP + " — " + PUNCHLINE
+
+
+def validate_line(line):
+    """Refuse lines that are empty, too long, or hide invisible formatting."""
+    if not 1 <= len(line) <= MAX_CHARS:
+        raise ValueError("entry must be 1-140 characters")
+    bad = [ch for ch in line if unicodedata.category(ch) == "Cf" or ch == "\u00a0"]
+    if bad:
+        raise ValueError("invisible formatting character in entry")
+def emit(line):
+    """Write the line to the output directory and check it survived intact."""
+    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "entry.txt")
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(line)
+    with open(path, encoding="utf-8") as f:
+        if f.read() != line:
+            raise ValueError("entry round-trip mismatch")
 
 
 def main():
-    text = ENTRY
-    if not (1 <= len(text) <= 140):
-        raise ValueError("entry must be 1-140 characters")
-    if any(unicodedata.category(ch) == "Cf" or ch == "\u00a0" for ch in text):
-        raise ValueError("invisible formatting character in entry")
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    path = os.path.join(out_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        f.write(text)
-    # UTF-8 round-trip: read the bytes back and confirm they match exactly.
-    with open(path, "rb") as f:
-        raw = f.read()
-    if raw.decode("utf-8") != text:
-        raise ValueError("entry round-trip mismatch")
+    line = build_one_liner()
+    validate_line(line)
+    emit(line)
 
 
 if __name__ == "__main__":
